@@ -19,18 +19,82 @@
     <canvas id="myCanvas" width="750px" height="750px"></canvas>
 </body>
 <script>
+    $(document).ready(()=>{        
 
-    // setting up the canvas and one paper tool
+      
     var canvas = document.getElementById('myCanvas');
     paper.setup(canvas);
     var tool = new paper.Tool();
+    var url = window.location.href;  
+    
+    // id and color functionality 
+    var id = Math.floor(Math.random() * 10000) + 1  
+    var paths = {};  
+      
+      
+    function getRandomColor() {
+      return '#'+(Math.random()*0xFFFFFF<<0).toString(16);
 
-    // getting the URL (you may want to use for Exercise 3)
-    var url = window.location.href;
+    }
 
-    // var socket = new WebSocket(
-    //     'wss://<your url here>/ws/draw');
+      
+    // creating path for first user
+    var path = new paper.Path();  
+    var colorUser = getRandomColor(); 
+    path.strokeColor = colorUser
+    path.strokeWidth = 5;  
+      
+   
+    // mouse movement draw  
+    tool.onMouseMove = function(e) {
+      path.add(e.point);
 
+      let message = {id: id, x: e.point.x, y: e.point.y, color: colorUser};
+      socket.send(JSON.stringify(message));
+  
+    };
+  
+    // create a new websocket connecting to the server
+    var socket = new WebSocket('wss://p3-websockets-wukenn-kennwu17112103.codeanyapp.com/ws/draw');      
+      
+    if (url.indexOf('large') !== -1 ) {
+       socket.onmessage = function(receivedMessage) {
+       let msg = JSON.parse(receivedMessage.data);
+         
+       if (msg.id in paths){
+         paths[msg.id].add(new paper.Point(msg.x,msg.y));
+       } else{
+         paths[msg.id] = new paper.Path();
+         paths[msg.id].strokeColor = msg.color;
+         paths[msg.id].strokeWidth = 5;
+         paths[msg.id].add(new paper.Point(msg.x,msg.y));
+       } 
+      };
+    }
+      
+      
+    // notify console if socket closes unexpectedly
+    socket.onclose = function(e) {
+     console.error('Socket closed unexpectedly');
+    };
+      
+      
+    window.addEventListener('devicemotion', (event) => {
+      if ((Math.abs(event.acceleration.x) > 35) && (Math.abs(event.acceleration.y) > 35)) {
+        paper.project.clear();
+      }
+    });
+      
+    window.addEventListener('deviceorientation',(event) => {
+      if (event.gamma > 30) {
+        path.strokeColor = paper.Color.random();
+      }   
+    });  
+    
+      
+    });
+
+  
 
 </script>
 </html>
